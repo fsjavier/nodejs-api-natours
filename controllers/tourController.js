@@ -1,5 +1,6 @@
 // const fs = require("fs");
 const Tour = require("../models/tourModel");
+const APIFeatures = require("../utils/apiFeatures");
 
 /*
 // Reading data from JSON file only for testing
@@ -41,6 +42,13 @@ exports.checkBody = (req, res, next) => {
 };
 */
 
+exports.aliasTopTours = (req, res, next) => {
+  req.query.limit = "5";
+  req.query.sort = "-ratingsAverage,price";
+  req.query.fields = "name,price,ratingsAverage,difficulty";
+  next();
+};
+
 exports.getAllTours = async (req, res) => {
   try {
     /*
@@ -58,20 +66,14 @@ exports.getAllTours = async (req, res) => {
     */
 
     // BUILD QUERY
-    // 1) Filtering
-    const queryObj = { ...req.query };
-    const excludedFields = ["page", "sort", "limit", "fields"];
-    excludedFields.forEach((el) => delete queryObj[el]);
-
-    // 2) Advanced Filtering
-    let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
-    console.log(JSON.parse(queryStr));
-
-    const query = Tour.find(JSON.parse(queryStr));
+    const features = new APIFeatures(Tour.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
 
     // EXECUTE QUERY
-    const tours = await query;
+    const tours = await features.query;
 
     // SEND RESPONSE
     res.status(200).json({
